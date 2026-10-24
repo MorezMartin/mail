@@ -213,6 +213,28 @@ class EncryptionAtRest:
 			return {"@type": self.type.value, "settings": self.settings.to_dict()}
 
 
+def default_locale() -> str:
+	"""Locale for new accounts, in BCP-47 (hyphen) format.
+
+	Stalwart >= 0.16.20 validates `locale` against its Locale enum and rejects
+	Frappe's underscore format (e.g. "fr_FR" -> invalidPatch, enum type FrFR).
+	Derive from the active language and normalize: "pt_BR" -> "pt-BR",
+	"fr" -> "fr-FR" (region fallback for bare language codes).
+	"""
+
+	lang = (frappe.local.lang or "en").replace("_", "-")
+	if "-" in lang:
+		return lang
+
+	# Region fallback for bare Frappe language codes (see Stalwart Locale enum)
+	REGION = {
+		"en": "US", "fr": "FR", "de": "DE", "nl": "NL", "es": "ES",
+		"pt": "PT", "it": "IT", "pl": "PL", "ru": "RU", "tr": "TR",
+		"hi": "IN", "ar": "SA", "zh": "CN", "ja": "JP", "ko": "KR",
+	}
+	return f"{lang}-{REGION.get(lang, 'US')}"
+
+
 @dataclass
 class Account:
 	name: str
@@ -224,7 +246,7 @@ class Account:
 	quotas: StorageQuota = field(default_factory=StorageQuota)
 	aliases: list[EmailAlias] | None = None
 	description: str | None = None
-	locale: str = "en_US"
+	locale: str = field(default_factory=default_locale)
 	timezone: str | None = None
 	encryption_at_rest: EncryptionAtRest = field(default_factory=EncryptionAtRest)
 
